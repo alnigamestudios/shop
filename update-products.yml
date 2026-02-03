@@ -1,0 +1,40 @@
+name: Update Products from Shopier API
+
+on:
+  schedule:
+    # Her gün 09:00 ve 21:00'da çalışır (UTC+3 için 06:00 ve 18:00 UTC)
+    - cron: '0 6 * * *'
+    - cron: '0 18 * * *'
+  workflow_dispatch: # Manuel tetikleme için
+
+jobs:
+  update-products:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Update products from Shopier API
+        env:
+          SHOPIER_API_TOKEN: ${{ secrets.SHOPIER_API_TOKEN }}
+        run: node scripts/update-products.js
+
+      - name: Check for changes
+        id: git-check
+        run: |
+          git diff --quiet products.js || echo "changes=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push if changed
+        if: steps.git-check.outputs.changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add products.js
+          git commit -m "🔄 Ürünler otomatik güncellendi - $(date +'%Y-%m-%d %H:%M')"
+          git push
